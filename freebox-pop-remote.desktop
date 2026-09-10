@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Freebox Pop Remote
+Comment=Télécommande Linux pour Freebox Player Pop
+Exec=freebox-pop-remote
+Icon=freebox-pop-remote
+Terminal=false
+Categories=AudioVideo;Utility;
+Keywords=Freebox;Pop;Remote;Android TV;TV;
+StartupNotify=true
+StartupWMClass=freebox-pop-remote
+SingleMainWindow=true

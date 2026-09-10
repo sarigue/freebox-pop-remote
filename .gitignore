@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+*.deb
+*.rpm
+*.AppImage
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*~
+
+# Platform build environment
+.venv-build-linux/

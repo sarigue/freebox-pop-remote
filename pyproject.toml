@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "freebox-pop-remote"
+dynamic = ["version"]
+description = "Remote control for Freebox Pop using Android TV Remote v2"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["freebox", "android-tv", "remote-control", "linux", "qt"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: X11 Applications :: Qt",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Video",
+]
+dependencies = [
+  "PySide6>=6.7",
+  "androidtvremote2>=0.3.2,<0.4",
+  "zeroconf>=0.149.16,<0.152",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.8",
+]
+native = [
+  "nuitka>=2.5",
+  "imageio>=2.37",
+  "ordered-set>=4.1",
+  "zstandard>=0.23",
+]
+
+[project.scripts]
+freebox-pop-remote = "freebox_pop_remote.main:main"
+
+[tool.setuptools]
+package-dir = {freebox_pop_remote = "src"}
+packages = ["freebox_pop_remote"]
+include-package-data = true
+
+
+[tool.setuptools.dynamic]
+version = {attr = "freebox_pop_remote.__version__"}
+
+[tool.setuptools.package-data]
+freebox_pop_remote = ["assets/*.svg", "assets/*.png"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "test"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

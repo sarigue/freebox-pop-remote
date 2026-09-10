@@ -1,0 +1,226 @@
+name: Build and release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  validate:
+    name: Validate source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run tests
+        run: python -m pytest
+
+      - name: Verify tag matches project version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' src/__init__.py | head -n1)"
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME != version $VERSION" >&2
+            exit 1
+          fi
+          echo "Version $VERSION validée."
+
+  linux:
+    name: Linux x86_64
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Linux build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            patchelf \
+            python3-venv \
+            dpkg-dev \
+            rpm \
+            libgl1 \
+            libegl1 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0
+
+      - name: Build standalone Linux executable
+        run: ./packaging/build-linux.sh
+
+      - name: Build Debian package
+        run: ./packaging/build-deb.sh
+
+      - name: Build RPM package
+        run: ./packaging/build-rpm.sh
+
+      - name: Prepare Linux release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' src/__init__.py | head -n1)"
+          mkdir -p release/linux
+          cp dist/linux/freebox-pop-remote release/linux/freebox-pop-remote-${VERSION}-linux-x86_64
+          chmod +x release/linux/freebox-pop-remote-${VERSION}-linux-x86_64
+          cp dist/linux/*.deb release/linux/
+          cp dist/linux/*.rpm release/linux/
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-x86_64
+          path: release/linux/*
+          if-no-files-found: error
+          compression-level: 0
+
+  windows:
+    name: Windows x86_64
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: ./packaging/build-windows.ps1
+
+      - name: Prepare Windows release file
+        shell: pwsh
+        run: |
+          $Version = (Select-String -Path "src\__init__.py" -Pattern '^__version__ = "([^"]+)"$').Matches.Groups[1].Value
+          New-Item -ItemType Directory -Force -Path "release\windows" | Out-Null
+          Copy-Item "dist\windows\freebox-pop-remote.exe" "release\windows\freebox-pop-remote-$Version-windows-x86_64.exe"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-x86_64
+          path: release/windows/*.exe
+          if-no-files-found: error
+          compression-level: 0
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Build macOS application
+        run: ./packaging/build-macos.sh
+
+      - name: Archive app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' src/__init__.py | head -n1)"
+          mkdir -p release/macos
+          OUT="release/macos/freebox-pop-remote-${VERSION}-macos-${{ matrix.arch }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "dist/macos/Freebox Pop Remote.app" "$OUT"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: macos-${{ matrix.arch }}
+          path: release/macos/*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - linux
+      - windows
+      - macos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' src/__init__.py | head -n1)"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              release-assets/* \
+              --verify-tag \
+              --title "Freebox Pop Remote $VERSION" \
+              --generate-notes
+          fi
