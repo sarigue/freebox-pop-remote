@@ -50,5 +50,6 @@ def test_ubuntu_jobs_install_qt_multimedia_runtime():
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
     release = (ROOT / ".github/workflows/release.yml").read_text()
 
-    assert "apt-get install -y --no-install-recommends libpulse0" in ci
-    assert release.count("libpulse0") == 2
+    for dependency in ("libegl1", "libgl1", "libpulse0", "libxcb-cursor0"):
+        assert dependency in ci
+        assert dependency in release

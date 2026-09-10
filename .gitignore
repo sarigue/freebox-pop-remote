@@ -10,6 +10,7 @@ htmlcov/
 # Virtual environments
 .venv/
 venv/
+.venv-*/
 
 # Build artifacts
 build/
@@ -17,6 +18,9 @@ dist/
 *.deb
 *.rpm
 *.AppImage
+*.zip
+*.exe
+*.app
 
 # IDE / OS
 .idea/

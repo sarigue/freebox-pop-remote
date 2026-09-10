@@ -139,7 +139,7 @@ class PlayerSettingsDialog(QDialog):
         self.host_edit = QLineEdit()
         self.host_edit.setPlaceholderText("192.168.1.42")
         self.alias_edit = QLineEdit()
-        self.alias_edit.setPlaceholderText("Facultatif — ex. Salon")
+        self.alias_edit.setPlaceholderText("Facultatif - ex. Salon")
         form.addRow("Adresse IP / hôte :", self.host_edit)
         form.addRow("Nom personnalisé :", self.alias_edit)
         layout.addLayout(form)

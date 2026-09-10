@@ -279,7 +279,7 @@ class RemoteBackend(QObject):
                 self._emit(self.connected_changed, False, display)
                 self._emit(
                     self.status_changed,
-                    f"{display} est momentanément indisponible — reconnexion automatique…",
+                    f"{display} est momentanément indisponible - reconnexion automatique…",
                 )
 
         remote.add_is_available_updated_callback(available_updated)
@@ -287,7 +287,7 @@ class RemoteBackend(QObject):
     async def _pair(self, remote: AndroidTVRemote, host: str) -> None:
         self._emit(
             self.status_changed,
-            "Démarrage de l’appairage — un code doit apparaître sur le téléviseur…",
+            "Démarrage de l’appairage - un code doit apparaître sur le téléviseur…",
         )
         await remote.async_start_pairing()
 
@@ -437,7 +437,7 @@ class RemoteBackend(QObject):
             return
         self._voice_stream = stream
         self._emit(self.voice_started)
-        self._emit(self.status_changed, "Microphone actif — relâche pour envoyer.")
+        self._emit(self.status_changed, "Microphone actif - relâche pour envoyer.")
 
     def send_voice_data(self, pcm_data: bytes) -> None:
         """Queue exact-format PCM data for the active voice stream."""

@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QComboBox,
     QDialog,
     QFrame,
@@ -85,7 +86,7 @@ class MainWindow(QMainWindow):
             if first_host:
                 QTimer.singleShot(300, lambda host=first_host: self._connect_to_player(host))
         else:
-            self.status.setText("Aucune Pop configurée — clique sur ⚙ pour commencer.")
+            self.status.setText("Aucun Player appairé - cliquez sur ⚙ pour commencer.")
             QTimer.singleShot(400, self._open_settings)
 
     def _build_remote(self) -> QWidget:
@@ -379,6 +380,10 @@ class MainWindow(QMainWindow):
                 font-size: 18px;
             }
             #remoteSettingsButton:hover { background: #383d43; }
+            #remoteSettingsButton:pressed {
+                background: #50555b;
+                border-color: #9aa0a6;
+            }
             #playerSelector {
                 background: #282b2e;
                 border: 0;
@@ -436,11 +441,19 @@ class MainWindow(QMainWindow):
                 font-style: italic;
                 border-radius: 21px;
             }
+            #powerButton:pressed, #backButton:pressed, #homeButton:pressed,
+            #muteButton:pressed, #numberButton:pressed, #remoteButton:pressed,
+            #netflixButton:pressed, #primeButton:pressed, #canalButton:pressed,
+            #disneyButton:pressed, #freeButton:pressed {
+                background: #50555b;
+                border-color: #9aa0a6;
+            }
             #voiceButton {
                 background: #17191b;
                 border: 1px solid #3c4044;
                 border-radius: 18px;
             }
+            #voiceButton:pressed,
             #voiceButton[voiceActive="true"] {
                 background: #a42128;
                 border-color: #dc555b;
@@ -448,6 +461,14 @@ class MainWindow(QMainWindow):
             #voiceButton:disabled {
                 background: #1c1e20;
                 border-color: #34373a;
+            }
+            #powerButton:disabled, #backButton:disabled, #homeButton:disabled,
+            #muteButton:disabled, #numberButton:disabled, #remoteButton:disabled,
+            #netflixButton:disabled, #primeButton:disabled, #canalButton:disabled,
+            #disneyButton:disabled, #freeButton:disabled {
+                background: #1b1d1f;
+                border-color: #303338;
+                color: #62666a;
             }
             #dpadPart {
                 background: transparent;
@@ -459,6 +480,15 @@ class MainWindow(QMainWindow):
                 background: #303438;
                 border-radius: 24px;
             }
+            #dpadPart:pressed {
+                background: #50555b;
+                border-radius: 24px;
+                color: #ffffff;
+            }
+            #dpadPart:disabled {
+                background: transparent;
+                color: #5c6064;
+            }
             #dpadCenter {
                 background: #222529;
                 border: 1px solid #5b6066;
@@ -468,6 +498,15 @@ class MainWindow(QMainWindow):
                 font-weight: 700;
             }
             #dpadCenter:hover { background: #383d42; }
+            #dpadCenter:pressed {
+                background: #50555b;
+                border-color: #9aa0a6;
+            }
+            #dpadCenter:disabled {
+                background: #1b1d1f;
+                border-color: #303338;
+                color: #62666a;
+            }
             #rocker {
                 background: #111315;
                 border: 1px solid #464a4f;
@@ -485,6 +524,14 @@ class MainWindow(QMainWindow):
                 text-align: center;
             }
             #rockerPart:hover { background: #303438; }
+            #rockerPart:pressed {
+                background: #50555b;
+                color: #ffffff;
+            }
+            #rockerPart:disabled {
+                background: transparent;
+                color: #62666a;
+            }
             #rockerLabel {
                 background: transparent;
                 color: #d8d8d8;
@@ -517,6 +564,11 @@ class MainWindow(QMainWindow):
             }
             #windowEngraving:hover {
                 color: #b7bcc1;
+            }
+            #windowEngraving:pressed {
+                background: #3b4045;
+                border-radius: 5px;
+                color: #ffffff;
             }
             #dialogHelp {
                 color: #b7bcc1;
@@ -638,6 +690,21 @@ class MainWindow(QMainWindow):
             self._settings_dialog.set_scanning(False)
 
     def _backend_status(self, text: str) -> None:
+        # When there is no remembered/paired Player yet, make the idle state
+        # explicit on the remote itself instead of leaving the user with
+        # apparently dead controls. Keep pairing/connection progress messages
+        # untouched; only normalize the final mDNS scan result.
+        if not self.players and not self._connected:
+            if text.startswith("Aucun Player détecté par mDNS"):
+                text = "Aucun Player détecté ni appairé - cliquez sur ⚙ pour commencer."
+            elif "appareil(s) Android TV détecté(s)." in text:
+                count = len(self._devices)
+                plural = "s" if count != 1 else ""
+                text = (
+                    f"{count} Player{plural} détecté{plural}, mais aucun n’est appairé - "
+                    "cliquez sur ⚙ pour l’appairer."
+                )
+
         self.status.setText(text)
         if self._settings_dialog is not None:
             self._settings_dialog.set_status(text)
@@ -654,7 +721,7 @@ class MainWindow(QMainWindow):
             self.backend.cancel_pairing()
 
     def _pairing_invalid(self) -> None:
-        self.status.setText("Code d'appairage refusé — vérifie le nouveau code affiché sur la TV.")
+        self.status.setText("Code d'appairage refusé - vérifie le nouveau code affiché sur la TV.")
         if self._settings_dialog is not None:
             self._settings_dialog.set_status(self.status.text())
 
@@ -699,9 +766,11 @@ class MainWindow(QMainWindow):
                 self._settings_dialog.set_connection_pending(False)
 
     def _set_remote_enabled(self, enabled: bool) -> None:
-        # Header (settings, Player selector, power) stays usable. The command
-        # area is disabled while no Player is connected.
-        self.remote_controls.setEnabled(enabled)
+        # Disable every command button individually so the status/brand at the
+        # bottom stay fully readable. Settings and window controls remain active
+        # so a first Player can still be detected and paired.
+        for button in self.remote_controls.findChildren(QAbstractButton):
+            button.setEnabled(enabled)
         self.power_button.setEnabled(enabled)
 
     def _voice_pressed(self) -> None:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QPushButton, QToolButton, QWidget
 
 
@@ -68,7 +68,16 @@ class RemoteButton(QPushButton):
 
 
 class GoogleVoiceButton(QPushButton):
-    """Push-to-talk button with a Google-style microphone glyph."""
+    """Push-to-talk button displaying the Google Assistant logo."""
+
+    # Google Assistant logo geometry, normalized from its 512 x 512 mark.
+    # Colors are the standard Google blue, green, red and yellow.
+    _DOTS = (
+        (156.268, 167.705, 156.268, "#4285F4"),
+        (480.238, 182.950, 31.762, "#34A853"),
+        (391.305, 260.449, 63.523, "#EA4335"),
+        (391.305, 424.339, 76.228, "#FBBC05"),
+    )
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -87,24 +96,21 @@ class GoogleVoiceButton(QPushButton):
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        color = QColor("#ffffff") if self.property("voiceActive") else QColor("#e8eaed")
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(color)
 
-        cx = self.width() / 2.0
-        top = 9.0
-        mic_w = 9.0
-        mic_h = 16.0
-        mic = QPainterPath()
-        mic.addRoundedRect(cx - mic_w / 2, top, mic_w, mic_h, 4.5, 4.5)
-        painter.drawPath(mic)
+        # Keep the complete square logo centered in the 56 x 42 button.
+        side = 25.0
+        left = (self.width() - side) / 2.0
+        top = (self.height() - side) / 2.0
+        scale = side / 512.0
 
-        pen = QPen(color, 2.2)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        # U-shaped receiver around the capsule.
-        painter.drawArc(int(cx - 9), 14, 18, 17, 180 * 16, 180 * 16)
-        painter.drawLine(int(cx), 29, int(cx), 34)
-        painter.drawLine(int(cx - 6), 34, int(cx + 6), 34)
+        if not self.isEnabled():
+            painter.setOpacity(0.35)
+
+        for cx, cy, radius, color in self._DOTS:
+            painter.setBrush(QColor(color))
+            painter.drawEllipse(
+                QPointF(left + cx * scale, top + cy * scale),
+                radius * scale,
+                radius * scale,
+            )

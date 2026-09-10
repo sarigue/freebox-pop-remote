@@ -15,5 +15,5 @@ class DiscoveredDevice:
     @property
     def label(self) -> str:
         """Human-readable label for combo boxes."""
-        model = f" — {self.model}" if self.model else ""
+        model = f" - {self.model}" if self.model else ""
         return f"{self.name}{model} ({self.host})"

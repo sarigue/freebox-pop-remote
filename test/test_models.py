@@ -12,4 +12,4 @@ def test_device_label_with_model():
         host="192.168.1.10",
         model="Player Pop",
     )
-    assert device.label == "Freebox Player — Player Pop (192.168.1.10)"
+    assert device.label == "Freebox Player - Player Pop (192.168.1.10)"

@@ -13,8 +13,9 @@ L'application fournit une télécommande graphique compacte inspirée de la
 télécommande physique du Player Pop, avec découverte réseau, appairage,
 sélection de plusieurs Players et pavé numérique.
 
-> Projet indépendant, non affilié ni approuvé par Free / Iliad. Les marques
-> citées appartiennent à leurs propriétaires respectifs.
+> **Freebox Pop Remote est un projet indépendant et non officiel. Il n’est ni affilié,
+> ni approuvé, ni sponsorisé par Free, Iliad ou Google. Les marques, noms et logos
+> cités appartiennent à leurs propriétaires respectifs.**
 
 ## Fonctionnalités
 
@@ -32,7 +33,7 @@ sélection de plusieurs Players et pavé numérique.
 - commande vocale push-to-talk depuis le microphone du PC ;
 - fenêtre Qt sans cadre et fond transparent.
 
-Pour parler au Player, maintenir le bouton microphone enfoncé puis le relâcher
+Pour parler au Player, maintenir le bouton Google Assistant enfoncé puis le relâcher
 à la fin de la commande. La capture est transmise en PCM 16 bits mono à 8 kHz.
 Si le microphone, sa permission ou la fonction vocale du Player est indisponible,
 la télécommande reste utilisable et affiche un message explicite.
