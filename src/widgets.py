@@ -68,30 +68,27 @@ class RemoteButton(QPushButton):
 
 
 class GoogleVoiceButton(QPushButton):
-    """Button with a Google-style microphone glyph.
-
-    Voice transport is not implemented yet, so the current UI keeps this
-    control disabled. Drawing the glyph ourselves avoids depending on an
-    external icon/theme and keeps it recognizable when greyed out.
-    """
+    """Push-to-talk button with a Google-style microphone glyph."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("voiceButton")
         self.setFixedSize(56, 42)
-        self.setCursor(Qt.CursorShape.ArrowCursor)
-        self.setToolTip("Reconnaissance vocale — transmission de la voix non prise en charge")
-        self.setEnabled(False)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip("Maintenir pour parler")
+
+    def set_voice_active(self, active: bool) -> None:
+        self.setProperty("voiceActive", active)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
 
     def paintEvent(self, event) -> None:
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # The control is intentionally disabled for now. If voice support is
-        # added later, these colors can be switched to the Google microphone
-        # multicolor segments without changing the geometry.
-        color = QColor("#72767a") if not self.isEnabled() else QColor("#e8eaed")
+        color = QColor("#ffffff") if self.property("voiceActive") else QColor("#e8eaed")
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
 

@@ -26,6 +26,7 @@ from .config import load_config, save_config
 from .constants import APP_NAME, CONFIG_FILE, DEFAULT_APP_LINKS
 from .dialogs import AppLinksDialog, PlayerSettingsDialog
 from .models import DiscoveredDevice
+from .voice import VoiceCapture
 from .widgets import DPad, GoogleVoiceButton, RemoteButton
 
 
@@ -43,6 +44,8 @@ class MainWindow(QMainWindow):
         self._pending_host = ""
         self._pending_alias: str | None = None
         self._settings_dialog: PlayerSettingsDialog | None = None
+        self._closing = False
+        self.voice_capture = VoiceCapture(self)
 
         self.setWindowTitle(APP_NAME)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
@@ -183,8 +186,10 @@ class MainWindow(QMainWindow):
         for column in range(3):
             assistant_home_grid.setColumnMinimumWidth(column, 56)
 
-        voice = GoogleVoiceButton()
-        assistant_home_grid.addWidget(voice, 0, 0)
+        self.voice_button = GoogleVoiceButton()
+        self.voice_button.pressed.connect(self._voice_pressed)
+        self.voice_button.released.connect(self._voice_released)
+        assistant_home_grid.addWidget(self.voice_button, 0, 0)
 
         home = RemoteButton("⌂", object_name="homeButton")
         home.setToolTip("Accueil Android TV")
@@ -436,6 +441,10 @@ class MainWindow(QMainWindow):
                 border: 1px solid #3c4044;
                 border-radius: 18px;
             }
+            #voiceButton[voiceActive="true"] {
+                background: #a42128;
+                border-color: #dc555b;
+            }
             #voiceButton:disabled {
                 background: #1c1e20;
                 border-color: #34373a;
@@ -538,6 +547,10 @@ class MainWindow(QMainWindow):
         self.backend.pairing_code_requested.connect(self._ask_pairing_code)
         self.backend.pairing_invalid.connect(self._pairing_invalid)
         self.backend.connected_changed.connect(self._connected_changed)
+        self.backend.voice_started.connect(self._voice_started)
+        self.backend.voice_stopped.connect(self._voice_stopped)
+        self.voice_capture.data_ready.connect(self.backend.send_voice_data)
+        self.voice_capture.error.connect(self._voice_capture_error)
 
     def _player_label(self, player: dict[str, str]) -> str:
         return player.get("alias") or player.get("name") or player.get("host") or "Pop"
@@ -691,7 +704,35 @@ class MainWindow(QMainWindow):
         self.remote_controls.setEnabled(enabled)
         self.power_button.setEnabled(enabled)
 
+    def _voice_pressed(self) -> None:
+        self.voice_button.set_voice_active(True)
+        self.status.setText("Démarrage de la commande vocale…")
+        self.backend.start_voice()
+
+    def _voice_started(self) -> None:
+        if not self.voice_button.isDown():
+            self.backend.stop_voice()
+            return
+        self.voice_capture.start()
+
+    def _voice_released(self) -> None:
+        self.voice_capture.stop()
+        self.backend.stop_voice()
+        self.voice_button.set_voice_active(False)
+
+    def _voice_stopped(self) -> None:
+        self.voice_capture.stop()
+        self.voice_button.set_voice_active(False)
+
+    def _voice_capture_error(self, message: str) -> None:
+        self.voice_capture.stop()
+        self.backend.stop_voice()
+        self.voice_button.set_voice_active(False)
+        self.status.setText(message)
+
     def _show_error(self, message: str) -> None:
+        if self._closing:
+            return
         if self._settings_dialog is not None:
             self._settings_dialog.set_connection_pending(False)
             self._settings_dialog.set_status(message)
@@ -773,5 +814,7 @@ class MainWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def closeEvent(self, event) -> None:
+        self._closing = True
+        self.voice_capture.stop()
         self.backend.shutdown()
         event.accept()

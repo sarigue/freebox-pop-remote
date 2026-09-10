@@ -7,6 +7,8 @@
 Télécommande pour **Freebox Player Pop / Player TV Free 4K** sous **Linux, Windows et macOS**, utilisant
 le protocole réseau **Android TV Remote v2**.
 
+Version actuelle : **1.1.0**.
+
 L'application fournit une télécommande graphique compacte inspirée de la
 télécommande physique du Player Pop, avec découverte réseau, appairage,
 sélection de plusieurs Players et pavé numérique.
@@ -27,10 +29,13 @@ sélection de plusieurs Players et pavé numérique.
 - pavé numérique 0–9 ;
 - raccourcis Free TV, Netflix, Prime Video, CANAL+ et Disney+ ;
 - raccourcis clavier ;
+- commande vocale push-to-talk depuis le microphone du PC ;
 - fenêtre Qt sans cadre et fond transparent.
 
-Le bouton de reconnaissance vocale est affiché mais désactivé en 1.0.0 :
-l'application ne capture ni ne transmet encore le microphone du PC.
+Pour parler au Player, maintenir le bouton microphone enfoncé puis le relâcher
+à la fin de la commande. La capture est transmise en PCM 16 bits mono à 8 kHz.
+Si le microphone, sa permission ou la fonction vocale du Player est indisponible,
+la télécommande reste utilisable et affiche un message explicite.
 
 ## Capture / interface
 
@@ -224,10 +229,11 @@ Le `.deb` contient **le binaire autonome** et les fichiers d’intégration Linu
 (`.desktop`, icônes, README, licence). Il n’installe pas Python, pip, pipx ou un
 environnement virtuel applicatif.
 
-Sortie typique :
+Sorties :
 
 ```text
-dist/linux/freebox-pop-remote_1.0.0_amd64.deb
+dist/linux/freebox-pop-remote-1.1.0-linux-amd64.deb
+dist/linux/freebox-pop-remote-1.1.0-linux-arm64.deb
 ```
 
 ## Paquet RPM
@@ -242,10 +248,11 @@ Le script nécessite `rpmbuild` (`sudo dnf install rpm-build` sur Fedora). Comme
 pour le `.deb`, si le binaire Linux autonome est absent, `build-linux.sh` est
 lancé automatiquement.
 
-La sortie est placée dans `dist/linux/`, par exemple :
+Les sorties sont placées dans `dist/linux/` :
 
 ```text
-dist/linux/freebox-pop-remote-1.0.0-1.x86_64.rpm
+dist/linux/freebox-pop-remote-1.1.0-linux-x86_64.rpm
+dist/linux/freebox-pop-remote-1.1.0-linux-aarch64.rpm
 ```
 
 ## Résumé des builds Linux
@@ -256,11 +263,11 @@ build-linux.sh
 
 build-deb.sh
     ├── appelle build-linux.sh si nécessaire
-    └── dist/linux/freebox-pop-remote_1.0.0_amd64.deb
+    └── dist/linux/freebox-pop-remote-1.1.0-linux-{amd64,arm64}.deb
 
 build-rpm.sh
     ├── appelle build-linux.sh si nécessaire
-    └── dist/linux/freebox-pop-remote-1.0.0-1.x86_64.rpm
+    └── dist/linux/freebox-pop-remote-1.1.0-linux-{x86_64,aarch64}.rpm
 ```
 
 ## Sécurité
@@ -342,6 +349,7 @@ Le workflow `.github/workflows/release.yml` construit les artefacts natifs sur
 les runners GitHub correspondant à chaque système :
 
 - Linux x86_64 : binaire autonome, `.deb` et `.rpm` ;
+- Linux ARM64 natif : binaire autonome, `.deb` et `.rpm` ;
 - Windows x86_64 : `.exe` autonome ;
 - macOS Apple Silicon : archive `.zip` contenant le `.app` ;
 - macOS Intel : archive `.zip` contenant le `.app`.
@@ -350,16 +358,35 @@ Le workflow peut être lancé manuellement depuis **Actions → Build and releas
 Run workflow**. Dans ce cas les fichiers sont disponibles comme artefacts du
 workflow.
 
-Lorsqu'un tag `vX.Y` est poussé, le workflow vérifie que `X.Y` correspond à la
+Lorsqu'un tag `vX.Y.Z` est poussé, le workflow vérifie que `X.Y.Z` correspond à la
 version déclarée dans `src/__init__.py`, construit toutes les plateformes puis
 crée automatiquement la GitHub Release et y joint les artefacts ainsi que
 `SHA256SUMS.txt`.
 
-Pour la version 1.0.0 :
+Les assets de la version 1.1.0 sont nommés exactement ainsi :
+
+```text
+freebox-pop-remote-1.1.0-linux-x86_64
+freebox-pop-remote-1.1.0-linux-amd64.deb
+freebox-pop-remote-1.1.0-linux-x86_64.rpm
+freebox-pop-remote-1.1.0-linux-arm64
+freebox-pop-remote-1.1.0-linux-arm64.deb
+freebox-pop-remote-1.1.0-linux-aarch64.rpm
+freebox-pop-remote-1.1.0-windows-x86_64.exe
+freebox-pop-remote-1.1.0-macos-x86_64.zip
+freebox-pop-remote-1.1.0-macos-arm64.zip
+SHA256SUMS.txt
+```
+
+Les archives macOS contiennent `Freebox Pop Remote.app`. Le runner ARM64 Linux
+est natif : aucun binaire x86_64 n'est renommé. Un lancement manuel construit,
+vérifie et conserve tous les artefacts sans créer de release.
+
+Après validation de la version 1.1.0 :
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 Aucune clé ou secret personnalisé n'est nécessaire pour une release standard :

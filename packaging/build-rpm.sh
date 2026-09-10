@@ -24,10 +24,19 @@ if [ ! -x "$BIN" ]; then
   "$ROOT/packaging/build-linux.sh"
 fi
 
-case "$(uname -m)" in
-  x86_64|amd64) RPM_ARCH="x86_64" ;;
-  aarch64|arm64) RPM_ARCH="aarch64" ;;
-  *) RPM_ARCH="$(uname -m)" ;;
+if [ -z "${RPM_ARCH:-}" ]; then
+  case "$(uname -m)" in
+    x86_64|amd64) RPM_ARCH="x86_64" ;;
+    aarch64|arm64) RPM_ARCH="aarch64" ;;
+    *) RPM_ARCH="$(uname -m)" ;;
+  esac
+fi
+case "$RPM_ARCH" in
+  x86_64|aarch64) ;;
+  *)
+    echo "Erreur: architecture RPM non prise en charge: $RPM_ARCH" >&2
+    exit 1
+    ;;
 esac
 
 TOPDIR="$(mktemp -d)"
@@ -117,7 +126,7 @@ fi
 
 %changelog
 * Thu Sep 10 2026 Freebox Pop Remote contributors <noreply@example.invalid> - $VERSION-1
-- Initial 1.0.0 package.
+- Freebox Pop Remote $VERSION.
 SPEC
 
 rpmbuild --define "_topdir $TOPDIR" -bb "$TOPDIR/SPECS/freebox-pop-remote.spec"
@@ -129,6 +138,6 @@ if [ -z "$RPM_FILE" ]; then
 fi
 
 mkdir -p "$DIST"
-OUT="${1:-$DIST/$(basename "$RPM_FILE")}" 
+OUT="${1:-$DIST/freebox-pop-remote-${VERSION}-linux-${RPM_ARCH}.rpm}"
 cp "$RPM_FILE" "$OUT"
 printf 'Paquet RPM: %s\n' "$OUT"

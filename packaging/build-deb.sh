@@ -5,7 +5,7 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST="$ROOT/dist/linux"
 BIN="$DIST/freebox-pop-remote"
 VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' "$ROOT/src/__init__.py" | head -n1)"
-ARCH="$(dpkg --print-architecture 2>/dev/null || true)"
+ARCH="${DEB_ARCH:-$(dpkg --print-architecture 2>/dev/null || true)}"
 
 if [ -z "$VERSION" ]; then
   echo "Erreur: impossible de lire la version dans src/__init__.py" >&2
@@ -28,7 +28,15 @@ if [ ! -x "$BIN" ]; then
   "$ROOT/packaging/build-linux.sh"
 fi
 
-OUT="${1:-$DIST/freebox-pop-remote_${VERSION}_${ARCH}.deb}"
+case "$ARCH" in
+  amd64|arm64) ;;
+  *)
+    echo "Erreur: architecture Debian non prise en charge: $ARCH" >&2
+    exit 1
+    ;;
+esac
+
+OUT="${1:-$DIST/freebox-pop-remote-${VERSION}-linux-${ARCH}.deb}"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 

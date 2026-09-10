@@ -52,9 +52,21 @@ jobs:
           echo "Version $VERSION validée."
 
   linux:
-    name: Linux x86_64
+    name: Linux ${{ matrix.arch }}
     needs: validate
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            deb_arch: amd64
+            rpm_arch: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            deb_arch: arm64
+            rpm_arch: aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -79,13 +91,34 @@ jobs:
             libxkbcommon-x11-0 \
             libxcb-cursor0
 
+      - name: Install and run tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          ruff check .
+          ruff format --check .
+          pytest
+
+      - name: Verify native runner architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.arch }}:$(uname -m)" in
+            x86_64:x86_64|arm64:aarch64|arm64:arm64) ;;
+            *) echo "Runner non natif: $(uname -m), attendu ${{ matrix.arch }}" >&2; exit 1 ;;
+          esac
+
       - name: Build standalone Linux executable
         run: ./packaging/build-linux.sh
 
       - name: Build Debian package
+        env:
+          DEB_ARCH: ${{ matrix.deb_arch }}
         run: ./packaging/build-deb.sh
 
       - name: Build RPM package
+        env:
+          RPM_ARCH: ${{ matrix.rpm_arch }}
         run: ./packaging/build-rpm.sh
 
       - name: Prepare Linux release files
@@ -94,15 +127,15 @@ jobs:
           set -euo pipefail
           VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' src/__init__.py | head -n1)"
           mkdir -p release/linux
-          cp dist/linux/freebox-pop-remote release/linux/freebox-pop-remote-${VERSION}-linux-x86_64
-          chmod +x release/linux/freebox-pop-remote-${VERSION}-linux-x86_64
+          cp dist/linux/freebox-pop-remote release/linux/freebox-pop-remote-${VERSION}-linux-${{ matrix.arch }}
+          chmod +x release/linux/freebox-pop-remote-${VERSION}-linux-${{ matrix.arch }}
           cp dist/linux/*.deb release/linux/
           cp dist/linux/*.rpm release/linux/
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: linux-x86_64
+          name: linux-${{ matrix.arch }}
           path: release/linux/*
           if-no-files-found: error
           compression-level: 0
@@ -182,9 +215,8 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  release:
-    name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
+  assemble:
+    name: Verify release assets
     needs:
       - linux
       - windows
@@ -197,8 +229,40 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v7
         with:
-          path: release-assets
-          merge-multiple: true
+          path: downloaded-assets
+
+      - name: Gather and verify the nine platform assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' src/__init__.py | head -n1)"
+          mkdir release-assets
+          while IFS= read -r -d '' asset; do
+            name="$(basename "$asset")"
+            if [ -e "release-assets/$name" ]; then
+              echo "Collision de nom d'asset: $name" >&2
+              exit 1
+            fi
+            cp "$asset" "release-assets/$name"
+          done < <(find downloaded-assets -type f -print0)
+
+          expected=(
+            "freebox-pop-remote-${VERSION}-linux-x86_64"
+            "freebox-pop-remote-${VERSION}-linux-amd64.deb"
+            "freebox-pop-remote-${VERSION}-linux-x86_64.rpm"
+            "freebox-pop-remote-${VERSION}-linux-arm64"
+            "freebox-pop-remote-${VERSION}-linux-arm64.deb"
+            "freebox-pop-remote-${VERSION}-linux-aarch64.rpm"
+            "freebox-pop-remote-${VERSION}-windows-x86_64.exe"
+            "freebox-pop-remote-${VERSION}-macos-x86_64.zip"
+            "freebox-pop-remote-${VERSION}-macos-arm64.zip"
+          )
+          mapfile -t actual < <(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
+          if [ "${#actual[@]}" -ne 9 ] || ! diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${actual[@]}"); then
+            echo "La liste des assets n'est pas celle attendue." >&2
+            exit 1
+          fi
 
       - name: Generate SHA-256 checksums
         shell: bash
@@ -207,6 +271,29 @@ jobs:
           cd release-assets
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-assets
+          path: release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: assemble
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download verified release assets
+        uses: actions/download-artifact@v7
+        with:
+          name: release-assets
+          path: release-assets
 
       - name: Create or update GitHub Release
         env:

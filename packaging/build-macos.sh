@@ -56,6 +56,8 @@ python -m nuitka \
   --include-data-dir="$ROOT/src/assets=freebox_pop_remote/assets" \
   --macos-app-icon="$ROOT/src/assets/freebox-pop-remote-512.png" \
   --macos-app-name="Freebox Pop Remote" \
+  --macos-app-version="$VERSION" \
+  --macos-app-protected-resource="NSMicrophoneUsageDescription:Freebox Pop Remote utilise le microphone uniquement pendant l'appui sur le bouton vocal." \
   --product-name="Freebox Pop Remote" \
   --company-name="Freebox Pop Remote" \
   --output-dir="$DIST" \
