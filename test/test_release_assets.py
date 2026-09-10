@@ -14,6 +14,8 @@ def test_packaging_names_are_versioned_from_source():
     assert "freebox-pop-remote-${VERSION}-linux-${RPM_ARCH}.rpm" in rpm
     assert '--macos-app-version="$VERSION"' in macos
     assert "NSMicrophoneUsageDescription" in macos
+    assert "libpulse0" in deb
+    assert "pulseaudio-libs" in rpm
 
 
 def test_release_workflow_declares_all_native_assets():
@@ -42,3 +44,11 @@ def test_release_workflow_declares_all_native_assets():
     assert "SHA256SUMS.txt" in workflow
     assert all(name in workflow for name in expected)
     assert __version__ not in workflow
+
+
+def test_ubuntu_jobs_install_qt_multimedia_runtime():
+    ci = (ROOT / ".github/workflows/ci.yml").read_text()
+    release = (ROOT / ".github/workflows/release.yml").read_text()
+
+    assert "apt-get install -y --no-install-recommends libpulse0" in ci
+    assert release.count("libpulse0") == 2

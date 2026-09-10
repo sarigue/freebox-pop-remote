@@ -53,7 +53,7 @@ Section: video
 Priority: optional
 Architecture: $ARCH
 Maintainer: Freebox Pop Remote contributors <noreply@example.invalid>
-Depends: libc6 (>= 2.34), libgl1, libegl1, libxkbcommon-x11-0, libxcb-cursor0
+Depends: libc6 (>= 2.34), libgl1, libegl1, libpulse0, libxkbcommon-x11-0, libxcb-cursor0
 Description: Télécommande pour Freebox Player Pop
  Télécommande graphique pour Freebox Player Pop / Player TV Free 4K,
  utilisant le protocole Android TV Remote v2.

@@ -61,6 +61,7 @@ Summary:        Télécommande pour Freebox Player Pop
 License:        MIT
 BuildArch:      $RPM_ARCH
 Requires:       glibc
+Requires:       pulseaudio-libs
 
 Source0:        freebox-pop-remote
 Source1:        freebox-pop-remote.desktop
