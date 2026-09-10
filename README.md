@@ -7,7 +7,7 @@
 Télécommande pour **Freebox Player Pop / Player TV Free 4K** sous **Linux, Windows et macOS**, utilisant
 le protocole réseau **Android TV Remote v2**.
 
-Version actuelle : **1.1.0**.
+Version actuelle : **1.1.1**.
 
 L'application fournit une télécommande graphique compacte inspirée de la
 télécommande physique du Player Pop, avec découverte réseau, appairage,
@@ -121,14 +121,19 @@ ruff format --check .
 │   ├── main.py
 │   ├── models.py
 │   ├── utils.py
+│   ├── voice.py
 │   ├── widgets.py
 │   └── window.py
 ├── test/
+│   ├── test_backend.py
 │   ├── test_config.py
+│   ├── test_desktop_assets.py
 │   ├── test_models.py
 │   ├── test_package.py
+│   ├── test_release_assets.py
+│   ├── test_storage_paths.py
 │   ├── test_utils.py
-│   └── test_desktop_assets.py
+│   └── test_voice.py
 ├── .gitignore
 ├── Makefile
 ├── freebox-pop-remote.desktop
@@ -137,22 +142,83 @@ ruff format --check .
 └── README.md
 ```
 
-## Configuration locale
+## Configuration, données et désinstallation
 
-Configuration :
+Freebox Pop Remote conserve sa configuration ainsi que les certificats
+d'appairage en dehors du binaire. Supprimer uniquement l'exécutable, le paquet
+ou le bundle macOS ne supprime donc pas automatiquement ces données utilisateur.
+
+### Linux
+
+Par défaut :
 
 ```text
 ~/.config/freebox-pop-remote/config.json
-```
-
-Certificats d'appairage :
-
-```text
 ~/.local/share/freebox-pop-remote/<player>/cert.pem
 ~/.local/share/freebox-pop-remote/<player>/key.pem
 ```
 
-Ces emplacements sont stables et sont conservés lors des mises à jour.
+Si `XDG_CONFIG_HOME` ou `XDG_DATA_HOME` sont définies, elles remplacent
+respectivement `~/.config` et `~/.local/share`. Cela s'applique au binaire Linux
+autonome comme aux versions installées par `.deb`, `.rpm` ou `make install`.
+
+La désinstallation d'un `.deb`/`.rpm` supprime les fichiers de l'application
+installés par le paquet, mais laisse volontairement la configuration et les
+certificats de chaque utilisateur. Pour une suppression complète après
+désinstallation :
+
+```bash
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/freebox-pop-remote"
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/freebox-pop-remote"
+```
+
+Pour le binaire Linux autonome, supprimer le binaire ne suffit donc pas non plus
+à effacer les appairages : les mêmes répertoires utilisateur restent présents.
+
+### Windows
+
+L'exécutable Windows autonome utilise en priorité `%APPDATA%` :
+
+```text
+%APPDATA%\freebox-pop-remote\config.json
+%APPDATA%\freebox-pop-remote\<player>\cert.pem
+%APPDATA%\freebox-pop-remote\<player>\key.pem
+```
+
+Si `%APPDATA%` n'est pas disponible, l'application essaie `%LOCALAPPDATA%`, puis
+`%USERPROFILE%\AppData\Roaming`. Si aucune de ces informations d'environnement
+n'est disponible, elle utilise en dernier recours un dossier
+`freebox-pop-remote-data` à côté de l'exécutable.
+
+Le `.exe` n'a pas de programme de désinstallation : pour le retirer, supprimer
+l'exécutable. Pour supprimer également la configuration et les certificats,
+supprimer le dossier `freebox-pop-remote` dans l'emplacement Windows effectivement
+utilisé (`%APPDATA%` dans le cas normal).
+
+### macOS
+
+Le bundle `.app` utilise :
+
+```text
+~/Library/Application Support/Freebox Pop Remote/config.json
+~/Library/Application Support/Freebox Pop Remote/<player>/cert.pem
+~/Library/Application Support/Freebox Pop Remote/<player>/key.pem
+```
+
+Si `HOME` n'est exceptionnellement pas disponible, l'application utilise en
+dernier recours `freebox-pop-remote-data` à côté de l'exécutable. Supprimer le
+`.app` ne supprime pas les données utilisateur ; pour un retrait complet, supprimer
+aussi `~/Library/Application Support/Freebox Pop Remote/`.
+
+### Erreurs d'accès aux fichiers
+
+Si l'application ne peut pas créer ou lire son répertoire de configuration ou de
+données, elle affiche une boîte de dialogue graphique indiquant l'erreur et les
+emplacements concernés. Les builds autonomes disposent en plus d'un dernier
+secours natif afin qu'une erreur de démarrage ne soit pas visible uniquement dans
+un terminal.
+
+> `key.pem` est une clé privée d'appairage. Ne la publiez jamais.
 
 ## Raccourcis clavier
 
@@ -233,8 +299,8 @@ environnement virtuel applicatif.
 Sorties :
 
 ```text
-dist/linux/freebox-pop-remote-1.1.0-linux-amd64.deb
-dist/linux/freebox-pop-remote-1.1.0-linux-arm64.deb
+dist/linux/freebox-pop-remote-1.1.1-linux-amd64.deb
+dist/linux/freebox-pop-remote-1.1.1-linux-arm64.deb
 ```
 
 ## Paquet RPM
@@ -252,8 +318,8 @@ lancé automatiquement.
 Les sorties sont placées dans `dist/linux/` :
 
 ```text
-dist/linux/freebox-pop-remote-1.1.0-linux-x86_64.rpm
-dist/linux/freebox-pop-remote-1.1.0-linux-aarch64.rpm
+dist/linux/freebox-pop-remote-1.1.1-linux-x86_64.rpm
+dist/linux/freebox-pop-remote-1.1.1-linux-aarch64.rpm
 ```
 
 ## Résumé des builds Linux
@@ -264,11 +330,11 @@ build-linux.sh
 
 build-deb.sh
     ├── appelle build-linux.sh si nécessaire
-    └── dist/linux/freebox-pop-remote-1.1.0-linux-{amd64,arm64}.deb
+    └── dist/linux/freebox-pop-remote-1.1.1-linux-{amd64,arm64}.deb
 
 build-rpm.sh
     ├── appelle build-linux.sh si nécessaire
-    └── dist/linux/freebox-pop-remote-1.1.0-linux-{x86_64,aarch64}.rpm
+    └── dist/linux/freebox-pop-remote-1.1.1-linux-{x86_64,aarch64}.rpm
 ```
 
 ## Sécurité
@@ -364,18 +430,18 @@ version déclarée dans `src/__init__.py`, construit toutes les plateformes puis
 crée automatiquement la GitHub Release et y joint les artefacts ainsi que
 `SHA256SUMS.txt`.
 
-Les assets de la version 1.1.0 sont nommés exactement ainsi :
+Les assets de la version 1.1.1 sont nommés exactement ainsi :
 
 ```text
-freebox-pop-remote-1.1.0-linux-x86_64
-freebox-pop-remote-1.1.0-linux-amd64.deb
-freebox-pop-remote-1.1.0-linux-x86_64.rpm
-freebox-pop-remote-1.1.0-linux-arm64
-freebox-pop-remote-1.1.0-linux-arm64.deb
-freebox-pop-remote-1.1.0-linux-aarch64.rpm
-freebox-pop-remote-1.1.0-windows-x86_64.exe
-freebox-pop-remote-1.1.0-macos-x86_64.zip
-freebox-pop-remote-1.1.0-macos-arm64.zip
+freebox-pop-remote-1.1.1-linux-x86_64
+freebox-pop-remote-1.1.1-linux-amd64.deb
+freebox-pop-remote-1.1.1-linux-x86_64.rpm
+freebox-pop-remote-1.1.1-linux-arm64
+freebox-pop-remote-1.1.1-linux-arm64.deb
+freebox-pop-remote-1.1.1-linux-aarch64.rpm
+freebox-pop-remote-1.1.1-windows-x86_64.exe
+freebox-pop-remote-1.1.1-macos-x86_64.zip
+freebox-pop-remote-1.1.1-macos-arm64.zip
 SHA256SUMS.txt
 ```
 
@@ -383,11 +449,11 @@ Les archives macOS contiennent `Freebox Pop Remote.app`. Le runner ARM64 Linux
 est natif : aucun binaire x86_64 n'est renommé. Un lancement manuel construit,
 vérifie et conserve tous les artefacts sans créer de release.
 
-Après validation de la version 1.1.0 :
+Après validation de la version 1.1.1 :
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.1.1
+git push origin v1.1.1
 ```
 
 Aucune clé ou secret personnalisé n'est nécessaire pour une release standard :

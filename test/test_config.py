@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 
+import pytest
 from freebox_pop_remote.config import (
     ConfigStore,
     default_config,
@@ -64,3 +66,16 @@ def test_invalid_json_falls_back_to_defaults(tmp_path):
     path.write_text("{broken", encoding="utf-8")
 
     assert ConfigStore(path).load() == default_config()
+
+
+def test_read_error_is_not_silently_ignored(tmp_path, monkeypatch):
+    path = tmp_path / "config.json"
+    path.write_text("{}", encoding="utf-8")
+
+    def fail_read(*_args, **_kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(Path, "read_text", fail_read)
+
+    with pytest.raises(PermissionError, match="denied"):
+        ConfigStore(path).load()

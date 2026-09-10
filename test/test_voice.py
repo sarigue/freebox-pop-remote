@@ -3,6 +3,15 @@ from freebox_pop_remote.voice import VOICE_CHUNK_SIZE, VoiceCapture
 from PySide6.QtMultimedia import QtAudio
 
 
+def test_audio_sink_write_data_accepts_qt_max_size_argument():
+    sink = voice_module._AudioSink()
+    chunks = []
+    sink.chunk_received.connect(chunks.append)
+
+    assert sink.writeData(b"abcdef", 3) == 3
+    assert chunks == [b"abc"]
+
+
 def test_voice_capture_buffers_full_chunks_and_remainder():
     capture = VoiceCapture()
     chunks = []

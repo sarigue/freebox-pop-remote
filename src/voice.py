@@ -15,8 +15,14 @@ class _AudioSink(QIODevice):
 
     chunk_received = Signal(bytes)
 
-    def writeData(self, data: bytes | bytearray | memoryview) -> int:
-        payload = bytes(data)
+    def writeData(
+        self,
+        data: bytes | bytearray | memoryview,
+        max_size: int,
+    ) -> int:
+        # QIODevice::writeData(const char *data, qint64 maxSize) passes both
+        # the buffer and the number of valid bytes to Python overrides.
+        payload = bytes(data[:max_size])
         if payload:
             self.chunk_received.emit(payload)
         return len(payload)

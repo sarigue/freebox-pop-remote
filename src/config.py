@@ -78,7 +78,7 @@ class ConfigStore:
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except json.JSONDecodeError:
             return default_config()
         return normalize_config(raw)
 
